@@ -42,7 +42,7 @@ class APIClientArgs:
     def __init__(self, port=None, fingerprint=None, sid=None, server="127.0.0.1", http_debug_level=0,
                  api_calls=None, debug_file="", proxy_host=None, proxy_port=8080,
                  api_version=None, unsafe=False, unsafe_auto_accept=False, context="web_api", single_conn=True,
-                 user_agent="python-api-wrapper", sync_frequency=2, cloud_mgmt_id=""):
+                 user_agent="python-api-wrapper", sync_frequency=2, cloud_mgmt_id="". discard_on_exception=False):
         self.port = port
         # management server fingerprint
         self.fingerprint = fingerprint
@@ -76,6 +76,8 @@ class APIClientArgs:
         self.sync_frequency = sync_frequency
         # Smart-1 Cloud management UID
         self.cloud_mgmt_id = cloud_mgmt_id
+        # Discard pending changes on exception
+        self.discard_on_exception = discard_on_exception
 
 
 class APIClient:
@@ -128,12 +130,17 @@ class APIClient:
         self.sync_frequency = api_client_args.sync_frequency
         # Smart-1 Cloud management UID
         self.cloud_mgmt_id = api_client_args.cloud_mgmt_id
+        # Discard pending changes on exception
+        self.discard_on_exception = api_client_args.discard_on_exception
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """destructor"""
+        # if exc ist thrown, check if we should discard all pending changes
+        if exc_type and self.sid and self.discard_on_exception:
+            self.api_call("discard")
         # if sid is not empty (the login api was called), then call logout
         if self.sid:
             self.api_call("logout")
